@@ -1,20 +1,46 @@
 ---
 name: open-rubika
-description: Use when the user asks to open or launch the "Rubika" (روبیکا) messenger application, or to find a contact/chat and send a message in Rubika on Windows. Opens the Rubika Web Chrome app window and drives it via low-level SendInput since synthetic key events do not reach Chrome.
+description: Use when the user asks to open or launch the "Rubika" (روبیکا) messenger application, or to find a contact/chat and send a message in Rubika on Windows. Opens the Rubika Web Chrome app window and drives it via low-level SendInput since synthetic key events do not reach Chrome. Also covers the faster API-based approach (rubpy) when UI automation is too slow.
 ---
 
 # Open Rubika messenger & send messages
 
-Rubika (روبیکا) is a Persian messenger that runs as a Chrome app (`web.rubika.ir`). Like Bale, Chrome **ignores synthetic key events**, so typing/pasting uses the real low-level SendInput scripts in `scripts/`. The **general rules** from `open-bale` apply unchanged — this skill only documents where Rubika differs.
+## Two approaches
 
-## What this skill does
+### 1. UI Automation (slower, ~5-8 min/message)
+Opens the Rubika Web Chrome app window and drives it via low-level SendInput. See sections below for the full recipe.
+
+### 2. API — rubpy (faster, ~1 min/message)
+Uses the unofficial `rubpy` Python library (`pip install rubpy`) to log in and send messages programmatically. **⚠️ Risk of temporary ban; only works for personal accounts without 2FA.**
+
+Key details:
+- `pip install rubpy` (v7.3.5+ works on Python 3.14)
+- **Critical**: rubpy's DEFAULT_PLATFORM has `platform: 'PWA'`, `package: 'm.rubika.ir'`, `app_version: '2.4.6'` → server returns INVALID_INPUT. Must override to Web:
+  ```python
+  app.DEFAULT_PLATFORM.update({
+      'app_version': '4.4.34',
+      'platform': 'Web',
+      'package': 'web.rubika.ir',
+      'lang_code': 'fa',
+  })
+  ```
+- API version is 6, encrypted with AES-CBC using `Crypto.passphrase(tmp_session)` where `tmp_session` is a 32-char lowercase random string.
+- Flow: `Client("name", platform="PWA")` → `connect()` → `get_dcs()` → `send_code(phone)` → read SMS code → `sign_in(code, phone, phone_code_hash, public_key)` → `register_device(...)` → `send_message(object_guid, text)`.
+- RSA keys generated via `Crypto.create_keys()`. The `public_key` goes into `sign_in()`, the `private_key` is used for `import_key` and message signing.
+- After signIn, `auth` is decrypted via `Crypto.decrypt_RSA_OAEP(private_key, auth_enc)`, then `app.key = Crypto.passphrase(auth)`.
+- To find a contact: call `get_contacts()` and search `original_update.first_name` / `last_name` for the Persian name (use unicode search, NOT console print — cp1256 console corrupts Persian).
+- `send_message(object_guid=user_guid, text=message)` returns `status: OK` on success.
+
+See `rubika-login-final.py` pattern in the workspace for a working end-to-end example.
+
+## What this skill does (UI approach)
 
 - Opens the Rubika Web window.
 - Finds any contact/chat by name (search box → type name → click a dropdown hit row).
 - Sends multi-line, Persian/RTL Unicode messages with a real Enter press.
 - Verifies the recipient (chat header), verifies the draft, and verifies delivery (message in chat + emptied compose box).
 
-## Tested status
+## Tested status (UI)
 
 | Network | Status |
 |---|---|
@@ -70,6 +96,7 @@ Verified real case: «مهدی حبیبی» is saved in Rubika as **«مهدیا
 - **Dropdown rows don't match clicking** → the y-gap between the search input and the first result contains nothing clickable; hit rows start ≈ 100px below the input. Use `ocr_region_structured` to get exact row coordinates.
 - **The chat pane suddenly moves mid-session** → `activate-send-enter.ps1` calls SW_RESTORE, which **un-maximizes** a maximized window (geometry + all coordinates change). If you need the maximized layout again, re-maximize and re-derive coordinates.
 - **Keys go nowhere / paste inserts nothing** → same as Bale: use the SendInput scripts, and copy to the clipboard immediately before each paste.
+- **API approach gets INVALID_INPUT** → rubpy's DEFAULT_PLATFORM has wrong app_version/package/platform. Override `DEFAULT_PLATFORM` to `{app_version: '4.4.34', platform: 'Web', package: 'web.rubika.ir', lang_code: 'fa'}` before any API call. See the API section at the top of this file.
 
 ## Notes
 
