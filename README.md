@@ -2,14 +2,15 @@
 
 Reusable opencode skills for driving **social networks** (messengers and social apps) in Chrome/desktop apps through the **`win32` desktop-automation MCP** on Windows.
 
-The first two shipped skills are **Bale (بله)** and **Rubika (روبیکا)** — opening the messenger, finding any contact, and sending a message — **both verified end-to-end on a real machine**. The repo also documents the **general principles** that apply to every network, so each new network is mostly "same rules, new app".
+The first three shipped skills are **Bale (بله)**, **Rubika (روبیکا)** and **Eitaa (ایتا)** — opening the messenger, finding any contact, and sending a message — **all verified end-to-end on a real machine**. The repo also documents the **general principles** that apply to every network, so each new network is mostly "same rules, new app".
 
 ## Tested networks
 
 | Network | Status | What was verified |
 |---|---|---|
 | **Bale (بله)** — Chrome app `web.bale.ai` | ✅ **tested end-to-end** | launch; contact search by name (مهدی حبیبی، ابوالفضل احمدیان); recipient verification (header + chat `uid`); multi-line Persian (RTL) message sent via real Enter; send confirmed (emptied compose box) |
-| **Rubika (روبیکا)** — Chrome app `web.rubika.ir` | ✅ **tested end-to-end** | launch; contact search by name (ابوالفضل احمدیان); dropdown hit rows located via region OCR; recipient verification (chat header); multi-line Persian (RTL) message sent via real Enter; send confirmed (message visible in chat + emptied compose box) |
+| **Rubika (روبیکا)** — Chrome app `web.rubika.ir` | ✅ **tested end-to-end** | launch; contact search by name (ابوالفضل احمدیان، and «مهدی حبیبی» found via the saved alias «مهدیار حبیبی شاندیز» under the «گفتگوها و مخاطبین» search group); dropdown hit rows located via region OCR; recipient verification (chat header); multi-line Persian (RTL) message sent via real Enter; send confirmed (message visible in chat + emptied compose box) |
+| **Eitaa (ایتا)** — native Qt desktop app | ✅ **tested end-to-end** | launch; contact search by name (ابوالفضل احمدیان; «مهدی حبیبی» found as the single result «مهدیار حبیبی شاندیز» — same cross-network alias); recipient verification via **window title** (`<chat> @ جواد حامد`) + in-pane header; draft verified via the focused `QTextEdit` **value**; send via `send-key.ps1` (no window restore); send confirmed (compose value empty + message in chat) |
 
 A network is added to this list **only after it is genuinely tested in a real session** with the same general method (search icon or contacts page → type the name → copy→paste → Enter → verify recipient and delivery).
 
@@ -21,9 +22,11 @@ A network is added to this list **only after it is genuinely tested in a real se
   - send a Persian/Unicode multi-line message reliably with real Enter;
   - recipient/draft/send verification at every step.
 - **`skills/open-rubika`** — verified recipe for Rubika Web (Chrome app): same general method in a different app (search box top-right, dropdown hit rows found by region OCR, `composer_rich_textarea` compose field, Enter-to-send).
-- **`scripts/`** — two reusable PowerShell helpers that solve the hardest part: Chrome **ignores** synthetic key events, so all typing/pasting uses real low-level SendInput:
+- **`skills/open-eitaa`** — verified recipe for the native Qt Eitaa Desktop app: fields and the compose value are exposed via UIA (draft verified without OCR), the **window title shows the open chat's name** (recipient check #1), and sends use the restore-free `send-key.ps1`.
+- **`scripts/`** — reusable PowerShell helpers that solve the hardest part: Chrome **ignores** synthetic key events, so all typing/pasting uses real low-level SendInput:
   - `type-unicode.ps1` — SendInput Unicode typing (Persian works), Shift+Enter newlines, scripted clipboard-paste, backspaces;
-  - `activate-send-enter.ps1` — bring a window to the foreground and press a key (Enter = send).
+  - `activate-send-enter.ps1` — bring a window to the foreground (match by title prefix) and press a key (Enter = send);
+  - `send-key.ps1` — key-injection ONLY (Enter/Space/Tab), no window activation or SW_RESTORE — for apps whose titles are Persian or where geometry must not change.
 - **`docs/SOCIAL-NETWORK-PRINCIPLES.md`** — the *one general rule* that applies to every network: find the contact via the search icon or the contacts page; copy before pasting; send with Enter; verify the recipient; never trust stale coordinates.
 
 ## Requirements (platform)
@@ -63,7 +66,9 @@ A network is added to this list **only after it is genuinely tested in a real se
 
 ```bash
 # 1. Install the skill (opencode auto-discovers ~/.config/opencode/skills)
-copy skills\open-bale   ~\.config\opencode\skills\open-bale
+copy skills\open-bale    ~\.config\opencode\skills\open-bale
+copy skills\open-rubika  ~\.config\opencode\skills\open-rubika
+copy skills\open-eitaa   ~\.config\opencode\skills\open-eitaa
 
 # 2. Copy the scripts somewhere stable and point the skill's recipe at them
 copy scripts\*.ps1      %LOCALAPPDATA%\Temp\opencode\
@@ -76,11 +81,11 @@ See `skills/open-bale/SKILL.md` for the full step-by-step recipe and troubleshoo
 
 ## How it works
 
-1. The agent clicks the chat-list **search icon** (position re-derived every session — the window moves between `Bale Web`/`Bale Web (2)` states).
-2. It types the contact name with `type-unicode.ps1` (SendInput Unicode) — synthetic `press_key`/`type_text` do not reach Chrome.
-3. It clicks the result and **verifies the recipient** before anything else (OCR header + chat `uid`).
+1. The agent clicks the chat-list **search icon** (position re-derived every session — the window moves between `Bale Web`/`Bale Web (2)` states; for Eitaa the search field is a `QTextEdit` at the top of the chat-list column).
+2. It types the contact name with `type-unicode.ps1` (SendInput Unicode) — synthetic `press_key`/`type_text` do not reach Chrome (and for Eitaa the tiny search field can't be OCR-verified, so the results area is read instead).
+3. It clicks the result and **verifies the recipient** before anything else (OCR header + chat `uid`; for Eitaa the window title itself becomes `<chatName> @ <user>`).
 4. The message is copied to the clipboard (`win32 clipboard_copy`) **immediately before** a SendInput Ctrl+V.
-5. The draft is verified via OCR, then **Enter** is sent with `activate-send-enter.ps1`, and the emptied compose box confirms delivery.
+5. The draft is verified (OCR, or — in Eitaa — the focused compose box's UIA `value`), then **Enter** is sent (`activate-send-enter.ps1`, or `send-key.ps1` where SW_RESTORE must be avoided), and the emptied compose box confirms delivery.
 
 ## Author & how this project was built
 
@@ -88,7 +93,7 @@ See `skills/open-bale/SKILL.md` for the full step-by-step recipe and troubleshoo
 
 This project was built via **AI-assisted coding** on the **opencode** platform (https://opencode.ai) with the **`opencode/big-pickle`** model. The workflow was pair/vibe coding: a human taught the agent the messenger's real behavior on a Windows machine, the agent captured every verified working step and turned it into this skill, and the general principles were abstracted from that session so future networks can reuse them.
 
-The recipes here were **genuinely tested and verified**: three real end-to-end sends — two in Bale (different recipients) and one in Rubika — each including recipient verification, draft validation, and send confirmation via the emptied compose box.
+The recipes here were **genuinely tested and verified**: six real end-to-end sends — two in Bale (different recipients), two in Rubika (ابوالفضل احمدیان and «مهدی حبیبی» reached via his saved alias «مهدیار حبیبی شاندیز») and two in Eitaa (the same two recipients) — each including recipient verification, draft validation, and send confirmation via the emptied compose box.
 
 ## License
 

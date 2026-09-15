@@ -18,7 +18,7 @@ Rubika (روبیکا) is a Persian messenger that runs as a Chrome app (`web.rub
 
 | Network | Status |
 |---|---|
-| **Rubika (روبیکا)** — `web.rubika.ir` Chrome app | ✅ **tested end-to-end** — one real send to ابوالفضل احمدیان with full recipient/draft/send verification. |
+| **Rubika (روبیکا)** — `web.rubika.ir` Chrome app | ✅ **tested end-to-end** — two real sends verified in chat: ابوالفضل احمدیان and مهدی حبیبی (= saved as «مهدیار حبیبی شاندیز»). |
 | Bale (بله) and other networks | see the `open-bale` skill / repo README registry |
 
 ## Platform requirements
@@ -52,6 +52,17 @@ Verified on a 1600x900 display; Rubika window maximized at (-8,-8,1616x876). **A
 11. **Verify the draft** with OCR (the bottom area of the chat pane).
 12. **Send**: `activate-send-enter.ps1 -WindowTitle "Rubika" -KeyName Enter`.
 13. **Confirm sent**: OCR shows the message in the chat pane (with today's date separator above it), and the compose box returns to its empty single-line (~21px tall) size.
+
+## Contact-searching protocol (learned live, verified 2026-09-15)
+
+A rubika user may be **saved under a different name** than the one you search for (prefix/suffix in first or last name). The user teaches this general rule:
+
+1. Query the full name you know. If only **CHANNEL rows appear** (each marked «... مشترک»), the person is not under that exact name.
+2. Go through **search variants** — surname alone → first name alone → Latin/Arabic spellings — and show the user the resulting rows before assuming anything.
+3. If several similar accounts appear, **present them numbered and ask the user which is their target**; never guess.
+4. When the user reveals the saved alias, **save it** (repo memory) for future sessions.
+
+Verified real case: «مهدی حبیبی» is saved in Rubika as **«مهدیار حبیبی شاندیز»**. Searching «مهدیار» puts the saved contact at the top of the dropdown inside a «گفتگوها و مخاطبین» (chats & contacts) group — click that first contact row (maximized coords ≈ (1450,168)); the chat header then reads «مهدیار حبیبی شاندیز» (RTL right side ≈ (976-1099,44)) with an «اطلاعات کاربر» button on the left. The «سلام مهدی جان! …» GitHub-announcement message was sent and verified in chat.
 
 ## Troubleshooting — Rubika-specific
 
