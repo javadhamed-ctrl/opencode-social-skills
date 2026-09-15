@@ -7,6 +7,21 @@ description: Use when the user asks to open or launch the "Bale" (بله) messen
 
 Bale (بله) is a Persian messenger that runs as a Chrome app (`web.bale.ai`). Chrome **ignores synthetic key events** (`win32 press_key` / `type_text` send keys nowhere), so real low-level SendInput is used for typing and pasting. The scripts in the `scripts/` folder of this skill provide that.
 
+## What this skill does
+
+- Opens the Bale Web window.
+- Finds any contact/chat by name (search icon → type name → first result).
+- Sends multi-line, Persian/RTL Unicode messages with a real Enter press.
+- Verifies the recipient (name + chat `uid`) before sending, verifies the draft, and verifies delivery (emptied compose box).
+- Uses ONE general method that maps directly to every other social network.
+
+## Tested status
+
+| Network | Status |
+|---|---|
+| **Bale (بله)** — `web.bale.ai` Chrome app | ✅ **tested end-to-end** — two real sends to different recipients (مهدی حبیبی، ابوالفضل احمدیان), each with recipient verification and send confirmation; contact search and launch verified. |
+| Other networks (Telegram, WhatsApp, Instagram, Rubika, …) | ⬜ pending — to be added to this table only after genuine testing in a real session (the general rules in this skill apply unchanged). |
+
 ## General rule (applies to EVERY social network)
 
 To find any contact/chat quickly, use ONE of these two paths (try 2 when 1 is not obvious):
@@ -19,11 +34,32 @@ Other universal rules:
 - **Send with Enter** (Shift+Enter = newline) — do not hunt for a send button.
 - **Verify the recipient** (the chat header shows the right name) before sending — never send to the wrong person.
 
-## Requirements
+## Platform requirements
 
-- Windows + PowerShell 5.1 (or later).
-- opencode with the `win32` MCP server (`win32-mcp-server`), which provides mouse/window/OCR/clipboard/UIA tools.
-- Tesseract OCR with Persian (`fas`) and/or Arabic (`ara`) language data for reading the RTL UI.
+### Model — vision / image-processing capable
+
+- Use a **multimodal model that accepts image input** so the agent can read screenshots and verify UI state that OCR cannot (icons, RTL layout, statuses). The model used to build & test this project is **`opencode/big-pickle`**.
+- The bundled OCR + UIA workflow keeps the skill usable with a text-only model, but a vision-capable model improves verification and icon-finding.
+
+### MCP server to install
+
+- **`win32` MCP** (`win32-mcp-server` Python package, mcp SDK 1.x; start with `python -m win32_mcp_server`). It supplies the tools this recipe calls:
+  - OCR: `ocr_window`, `ocr_region`, `ocr_screen` (with `lang: "fas"` for Persian);
+  - windows: `list_windows`, `focus_window`, `get_window_snapshot`, `move/resize`;
+  - mouse: `click`, `click_text`, `drag`, `scroll`;
+  - keyboard: `press_key`, `type_text`, `hotkey`;
+  - clipboard: `clipboard_copy`, `clipboard_paste`;
+  - UI Automation: `uia_get_focused`, `uia_find_control`, `uia_inspect_window`.
+- **Tesseract OCR** with the `fas` (Persian), `ara`, `eng` language data — required for reading the RTL UI.
+- **PowerShell 5.1+** (built into Windows) + the two scripts in `scripts/` (SendInput layer; nothing else to install).
+
+### Permissions needed
+
+- An **interactive Windows desktop session** (machine unlocked, messenger on screen).
+- opencode tool permissions for the **`win32` MCP tools** and for **Bash** (recipes run `powershell -NoProfile -ExecutionPolicy Bypass -File ...`).
+- Ability to **inject mouse/keyboard input**, **read/set the clipboard**, **enumerate & focus windows**, **launch processes**, **capture screenshots**, **run local OCR**.
+- The messenger must already be **logged in** — no passwords, tokens, or API keys; the agent drives the existing session like a human.
+- **No admin rights** (SendInput/UIA are user-space; `-ExecutionPolicy Bypass` avoids permanent policy changes).
 
 ## Install
 
@@ -42,7 +78,7 @@ The window may appear as `Bale Web` or `Bale Web (2)` (e.g. when a previous inst
 
 ## Find a contact & send a message (verified end-to-end recipe)
 
-The search icon's absolute position is NOT stable (the window resizes/moves). Re-derive it by OCR/pixel-scanning the top band of the chat-list column. Working reference points (from real sessions): a maximized window ⇒ search icon ~(1368,53); a 903px-wide right-side window ⇒ ~(1460,51). The "۵/5" styling of the magnifier is often OCR'd as a digit — click candidates and confirm the placeholder appears.
+The search icon's absolute position is NOT stable (the window resizes/moves). Re-derive it by OCR/pixel-scanning the top band of the chat-list column. Working reference points (from real sessions): a maximized window ⇒ search icon ~(1368,53); a 903px-wide right-side window ⇒ ~(1460,51). The magnifier is often OCR'd as a digit ("5") — click candidates and confirm the placeholder appears.
 
 1. **Focus Bale** and ensure it is the foreground window.
 2. **Open search**: click the magnifier icon; confirm the placeholder «جستجوی کانال، گروه و پیام...» appeared.
@@ -72,7 +108,10 @@ Low-level SendInput Unicode typing that reaches Chrome.
 - `-Paste` — SendInput Ctrl+V (pastes the *current* clipboard; set clipboard first).
 - `-BackspaceCount N` — presses Backspace N times (clear a stray character before typing).
 - `-DelayMs N` — pause between keys (default 20).
-- `-KeyName` variants for `activate-send-enter.ps1`: `Enter` (default), `Space`, `Tab`.
+
+### `activate-send-enter.ps1`
+- `-WindowTitle "Bale Web"` — brings the window (by title prefix) to the foreground.
+- `-KeyName Enter|Space|Tab` — sends the key via SendInput. Enter = send in messengers.
 
 ## Notes
 

@@ -1,26 +1,65 @@
 # opencode-social-skills
 
-Reusable opencode skills for driving **social networks** (messengers and social apps) inside Chrome through the `win32` desktop-automation MCP on Windows.
+Reusable opencode skills for driving **social networks** (messengers and social apps) in Chrome/desktop apps through the **`win32` desktop-automation MCP** on Windows.
 
-The first shipped skill is **Bale (بله)** — opening the messenger, finding any contact, and sending a message — verified end-to-end on a real machine. The repo also documents the **general principles** that apply to every network, so adding the next network is mostly "same rules, new app".
+The first shipped skill is **Bale (بله)** — opening the messenger, finding any contact, and sending a message — **verified end-to-end on a real machine**. The repo also documents the **general principles** that apply to every network, so each new network is mostly "same rules, new app".
+
+## Tested networks
+
+| Network | Status | What was verified |
+|---|---|---|
+| **Bale (بله)** — Chrome app `web.bale.ai` | ✅ **tested end-to-end** | launch; contact search by name (مهدی حبیبی، ابوالفضل احمدیان); recipient verification (header + chat `uid`); multi-line Persian (RTL) message sent via real Enter; send confirmed (emptied compose box) |
+| Telegram | ⬜ pending | — |
+| WhatsApp | ⬜ pending | — |
+| Instagram | ⬜ pending | — |
+| Rubika / other messengers | ⬜ pending | — |
+
+A network is added to this list **only after it is genuinely tested in a real session** with the same general method (search icon or contacts page → type the name → copy→paste → Enter → verify recipient and delivery).
 
 ## Features
 
 - **`skills/open-bale`** — complete, working recipe for Bale Web (Chrome app):
   - launch the Bale Web window;
-  - find any contact/chat (search-by-name, with a verified fallback principle);
-  - send a Persian/Unicode message reliably with real Enter;
+  - find any contact/chat (search-by-name with a verified fallback principle);
+  - send a Persian/Unicode multi-line message reliably with real Enter;
   - recipient/draft/send verification at every step.
 - **`scripts/`** — two reusable PowerShell helpers that solve the hardest part: Chrome **ignores** synthetic key events, so all typing/pasting uses real low-level SendInput:
   - `type-unicode.ps1` — SendInput Unicode typing (Persian works), Shift+Enter newlines, scripted clipboard-paste, backspaces;
   - `activate-send-enter.ps1` — bring a window to the foreground and press a key (Enter = send).
 - **`docs/SOCIAL-NETWORK-PRINCIPLES.md`** — the *one general rule* that applies to every network: find the contact via the search icon or the contacts page; copy before pasting; send with Enter; verify the recipient; never trust stale coordinates.
 
-## Requirements
+## Requirements (platform)
 
-- Windows with PowerShell 5.1+.
-- [opencode](https://opencode.ai) with the `win32` MCP server (`win32-mcp-server`): mouse, window, OCR, clipboard, UIA tools.
-- Tesseract OCR with the `fas`/`ara` language data for reading Persian (RTL) UI text.
+### 1. A model with image-processing / vision capability
+
+- The model used by opencode must support **image input** (screenshots). The model used to build and test this project is **`opencode/big-pickle`**.
+- **Why vision matters:** the agent reads screenshots to interpret UI state that OCR cannot (icons, RTL layout, statuses), and to visually confirm what it clicked.
+- The included **OCR + UIA workflow keeps the skill functional even with a text-only model**, but a vision-capable model makes verification and icon-finding noticeably more reliable.
+
+### 2. MCP server (must be installed)
+
+- **`win32` MCP** — from the `win32-mcp-server` Python package (mcp SDK pinned to 1.x). In `opencode`:
+  - `{ "server": "win32", "cmd": "python -m win32_mcp_server", ... }`.
+  - It provides the 53 tools the skill relies on: full-screen/region/window **OCR** (`ocr_screen`, `ocr_region`, `ocr_window`), window control (`list_windows`, `focus_window`, `get_window_snapshot`), mouse (`click`, `click_text`, `drag`, `scroll`), keyboard (`press_key`, `type_text`, `hotkey`), clipboard (`clipboard_copy`/`clipboard_paste`), **UI Automation** (`uia_get_focused`, `uia_find_control`, `uia_inspect_window`, `uia_set_control_value`), process control, and more.
+- **Tesseract OCR** with the **`fas` (Persian)**, `ara`, and `eng` language data — the RTL UI is read entirely through Tesseract; without `fas` the recipes fail on Persian text.
+- **PowerShell 5.1+** (ships with Windows) + the two scripts in `scripts/` — no extra install; a custom SendInput layer because synthetic key events never reach Chrome.
+
+### 3. Permissions / accesses required
+
+- An **interactive Windows desktop session** — the machine must be unlocked and the messenger app on screen (the agent drives the UI as a human would).
+- **opencode tool permissions** for the `win32` MCP tools **and** for **Bash** (the recipe invokes PowerShell via `powershell -NoProfile -ExecutionPolicy Bypass -File ...`).
+- The agent must be able to: **inject mouse/keyboard input**, **read/set the clipboard**, **enumerate and focus windows**, **launch processes**, **capture screenshots**, and **run local OCR**.
+- The messenger must already be **logged in** — the skill needs **no passwords, tokens, or API keys**; it drives the existing logged-in session exactly like a human assistant.
+- **No administrator rights** are needed (SendInput/UIA run in user space; `-ExecutionPolicy Bypass` avoids changing the policy permanently).
+
+### 4. Capabilities & convenience for the user
+
+- **Open** any supported messenger and **find any contact/chat instantly** (search icon or contacts page — the same two paths on every network).
+- **Send multi-line, Persian/RTL Unicode messages** with a real Enter press (no more hunting for send buttons).
+- **Never send to the wrong person** — the recipient is verified from the chat header (and chat `uid` where available) before sending.
+- **Fully verifiable at every step** (OCR + UIA + clipboard checks) — not fire-and-forget automation.
+- **One method reused across all networks** → each new network is quick to add and test.
+- **Delegates repetitive daily messaging** to the agent (e.g. routine announcements, follow-ups), freeing the user's time.
 
 ## Usage
 
@@ -49,7 +88,7 @@ See `skills/open-bale/SKILL.md` for the full step-by-step recipe and troubleshoo
 
 **Author:** Javad Hamed
 
-This project was built via **AI-assisted coding** on the **opencode** platform (https://opencode.ai) with the **`opencode/big-pickle`** model. The workflow was pair/vibe coding: a human taught the agent the messenger's real behavior on a Windows machine, the agent captured every verified working step and turned it into this skill, and the extra principles were abstracted from that single session so future networks can reuse them.
+This project was built via **AI-assisted coding** on the **opencode** platform (https://opencode.ai) with the **`opencode/big-pickle`** model. The workflow was pair/vibe coding: a human taught the agent the messenger's real behavior on a Windows machine, the agent captured every verified working step and turned it into this skill, and the general principles were abstracted from that session so future networks can reuse them.
 
 The recipes here were **genuinely tested and verified**: two real end-to-end sends in Bale succeeded (different recipients), including recipient verification, draft validation, and send confirmation via the emptied compose box.
 
