@@ -2,17 +2,14 @@
 
 Reusable opencode skills for driving **social networks** (messengers and social apps) in Chrome/desktop apps through the **`win32` desktop-automation MCP** on Windows.
 
-The first shipped skill is **Bale (بله)** — opening the messenger, finding any contact, and sending a message — **verified end-to-end on a real machine**. The repo also documents the **general principles** that apply to every network, so each new network is mostly "same rules, new app".
+The first two shipped skills are **Bale (بله)** and **Rubika (روبیکا)** — opening the messenger, finding any contact, and sending a message — **both verified end-to-end on a real machine**. The repo also documents the **general principles** that apply to every network, so each new network is mostly "same rules, new app".
 
 ## Tested networks
 
 | Network | Status | What was verified |
 |---|---|---|
 | **Bale (بله)** — Chrome app `web.bale.ai` | ✅ **tested end-to-end** | launch; contact search by name (مهدی حبیبی، ابوالفضل احمدیان); recipient verification (header + chat `uid`); multi-line Persian (RTL) message sent via real Enter; send confirmed (emptied compose box) |
-| Telegram | ⬜ pending | — |
-| WhatsApp | ⬜ pending | — |
-| Instagram | ⬜ pending | — |
-| Rubika / other messengers | ⬜ pending | — |
+| **Rubika (روبیکا)** — Chrome app `web.rubika.ir` | ✅ **tested end-to-end** | launch; contact search by name (ابوالفضل احمدیان); dropdown hit rows located via region OCR; recipient verification (chat header); multi-line Persian (RTL) message sent via real Enter; send confirmed (message visible in chat + emptied compose box) |
 
 A network is added to this list **only after it is genuinely tested in a real session** with the same general method (search icon or contacts page → type the name → copy→paste → Enter → verify recipient and delivery).
 
@@ -23,6 +20,7 @@ A network is added to this list **only after it is genuinely tested in a real se
   - find any contact/chat (search-by-name with a verified fallback principle);
   - send a Persian/Unicode multi-line message reliably with real Enter;
   - recipient/draft/send verification at every step.
+- **`skills/open-rubika`** — verified recipe for Rubika Web (Chrome app): same general method in a different app (search box top-right, dropdown hit rows found by region OCR, `composer_rich_textarea` compose field, Enter-to-send).
 - **`scripts/`** — two reusable PowerShell helpers that solve the hardest part: Chrome **ignores** synthetic key events, so all typing/pasting uses real low-level SendInput:
   - `type-unicode.ps1` — SendInput Unicode typing (Persian works), Shift+Enter newlines, scripted clipboard-paste, backspaces;
   - `activate-send-enter.ps1` — bring a window to the foreground and press a key (Enter = send).
@@ -90,7 +88,7 @@ See `skills/open-bale/SKILL.md` for the full step-by-step recipe and troubleshoo
 
 This project was built via **AI-assisted coding** on the **opencode** platform (https://opencode.ai) with the **`opencode/big-pickle`** model. The workflow was pair/vibe coding: a human taught the agent the messenger's real behavior on a Windows machine, the agent captured every verified working step and turned it into this skill, and the general principles were abstracted from that session so future networks can reuse them.
 
-The recipes here were **genuinely tested and verified**: two real end-to-end sends in Bale succeeded (different recipients), including recipient verification, draft validation, and send confirmation via the emptied compose box.
+The recipes here were **genuinely tested and verified**: three real end-to-end sends — two in Bale (different recipients) and one in Rubika — each including recipient verification, draft validation, and send confirmation via the emptied compose box.
 
 ## License
 
